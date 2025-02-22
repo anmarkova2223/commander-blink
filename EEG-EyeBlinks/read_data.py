@@ -37,7 +37,7 @@ def decode_stim(data_path, file_stim):
             elif row[0]=="blinks":
                 #check that n_corrupt is 0
                 if not n_corrupt==0:
-                    print "!Error in parsing"
+                    print("!Error in parsing")
             else:
                 blinks.append([float(row[0]), int(row[1])])
     blinks = np.array(blinks)
@@ -49,12 +49,12 @@ file_idx = 0
 list_of_files = [f for f in os.listdir(data_folder) if os.path.isfile(os.path.join(data_folder, f)) and '_data' in f]
 file_sig = list_of_files[file_idx]
 file_stim = list_of_files[file_idx].replace('_data','_labels')
-print "Reading: ", file_sig, file_stim
+print("Reading: ", file_sig, file_stim)
 
 # Loading data
-if data_folder is 'EEG-IO' or data_folder is 'EEG-MB':
+if data_folder == 'EEG-IO' or data_folder == 'EEG-MB':
 	data_sig = np.loadtxt(open(os.path.join(data_folder,file_sig), "rb"), delimiter=";", skiprows=1, usecols=(0,1,2))
-elif data_folder is 'EEG-VR' or data_folder is 'EEG-VV':
+elif data_folder == 'EEG-VR' or data_folder == 'EEG-VV':
 	data_sig = np.loadtxt(open(os.path.join(data_folder,file_sig), "rb"), delimiter=",", skiprows=5, usecols=(0,1,2))
 	data_sig = data_sig[0:(int(200*fs)+1),:]
 	data_sig = data_sig[:,0:3]
@@ -79,5 +79,6 @@ for d in groundtruth_blinks:
     elif d[1] == 2:
         plt.axvline(x=d[0], color='black')
 plt.show()
+fig.savefig('data.png')
 
 
