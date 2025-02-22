@@ -9,7 +9,7 @@ import csv
 import matplotlib.pyplot as plt
 
 #Options to read: 'EEG-IO', 'EEG-VV', 'EEG-VR', 'EEG-MB'
-data_folder = 'EEG-VR' 
+data_folder = 'EEG-VV' 
 
 # Parameters and bandpass filtering
 fs = 250.0
@@ -79,6 +79,6 @@ for d in groundtruth_blinks:
     elif d[1] == 2:
         plt.axvline(x=d[0], color='black')
 plt.show()
-fig.savefig('data.png')
+# fig.savefig('data.png')
 
 

@@ -22,7 +22,7 @@ from scipy.interpolate import interp1d
 
 
 mode = True # mode True means EEG-IO, otherwise v/r (EEG-VV or EEG-VR) data
-data_path = 'data/EEG-IO' if mode else 'data/EEG-VV' # or replace w/ EEG-VR
+data_path = 'EEG-IO' if mode else 'EEG-VV' # or replace w/ EEG-VR
 file_idx = 7
 
 fs = 250.0
@@ -65,7 +65,7 @@ def decode_stim(data_path, file_stim):
                 n_corrupt = n_corrupt - 1
             elif row[0]=="blinks":
                 if not n_corrupt==0:
-                    print "!Error in parsing"
+                    print("!Error in parsing")
             else:
                 blinks.append([float(row[0]), int(row[1])])
     blinks = np.array(blinks)
@@ -78,7 +78,7 @@ list_of_files = [f for f in os.listdir(data_path) if os.path.isfile(os.path.join
 
 file_sig = list_of_files[file_idx]
 file_stim = list_of_files[file_idx].replace('_data','_labels')
-print "File Name: ", file_sig, file_stim
+print ("File Name: ", file_sig, file_stim)
 
 
 # Loading Data
@@ -448,15 +448,15 @@ for pred_sample in pred:
     else:
         cmat[0,1] = cmat[0,1] + 1
 
-print "Confusion Matrix:"        
-print cmat
+print ("Confusion Matrix:")       
+print (cmat)
 
 precision = cmat[0,0]*1.0/(cmat[0,0] + cmat[0,1])
 recall = cmat[0,0]*1.0/(cmat[0,0] + cmat[1,0])
 f1 = 2*precision*recall/(precision+recall)
 
-print "Recall, Precision, F1 Score"
-print recall, precision, f1
+print ("Recall, Precision, F1 Score")
+print (recall, precision, f1)
 
 plt.show()
 
