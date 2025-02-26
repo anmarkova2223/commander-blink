@@ -168,6 +168,11 @@ def peakdet(time, value, args):
 ## Finding extreme points
 
 def find_expoints(stat_min2, data_sig, chan_id):
+    '''
+    stat_min2: list of extreme points
+    data_sig: data signal
+    chan_id: channel id
+    '''
     # Parameters
     offset_t = 0.00 # in seconds
     win_size = 25
@@ -175,8 +180,8 @@ def find_expoints(stat_min2, data_sig, chan_id):
     search_maxlen_t = 1.5 # in seconds
 
 
-    offset_f = int(offset_t*fs)
-    search_maxlen_f = int(search_maxlen_t*fs)
+    offset_f = int(offset_t*fs) 
+    search_maxlen_f = int(search_maxlen_t*fs) #number of data points collected
     iters = int(search_maxlen_f/win_offset)
 
     data_len = len(data_sig)
@@ -185,9 +190,9 @@ def find_expoints(stat_min2, data_sig, chan_id):
         # x_indR and x_indL are starting points for left and right window
         x_indR = int(fs*stat_min2[idx,0]) + offset_f
         x_indL = int(fs*stat_min2[idx,0]) - offset_f
-        start_index = max(0, int(fs*stat_min2[idx,0]) - std_threshold_window)
-        end_index = min( int(fs*stat_min2[idx,0]) + std_threshold_window, data_len)
-        stable_threshold = 2*min(running_std[start_index:end_index])
+        start_index = max(0, int(fs*stat_min2[idx,0]) - std_threshold_window) #5 sec before peak
+        end_index = min( int(fs*stat_min2[idx,0]) + std_threshold_window, data_len) #5 sec after peak
+        stable_threshold = 2*min(running_std[start_index:end_index]) #standard deviation of the smaller window
         min_val = stat_min2[idx,1];
         max_val = min_val;
         found1, found2 = 0, 0
@@ -239,13 +244,13 @@ def compute_correlation(p_blinks_t, data_sig, chan_id, fs):
     for idx_i in range(total_p_blinks):
         for idx_j in range(idx_i+1,total_p_blinks):
 
-            blink_i_left = data_sig[int(fs*p_blinks_t[idx_i,0]):int(fs*p_blinks_t[idx_i,1]), chan_id]
-            blink_i_right = data_sig[int(fs*p_blinks_t[idx_i,1]):int(fs*p_blinks_t[idx_i,2]), chan_id]
+            blink_i_left = data_sig[int(fs*p_blinks_t[idx_i,0]):int(fs*p_blinks_t[idx_i,1]), chan_id] #left side of the blink dip
+            blink_i_right = data_sig[int(fs*p_blinks_t[idx_i,1]):int(fs*p_blinks_t[idx_i,2]), chan_id] # right side of the blink dip
 
-            blink_j_left = data_sig[int(fs*p_blinks_t[idx_j,0]):int(fs*p_blinks_t[idx_j,1]), chan_id]
-            blink_j_right = data_sig[int(fs*p_blinks_t[idx_j,1]):int(fs*p_blinks_t[idx_j,2]), chan_id]
+            blink_j_left = data_sig[int(fs*p_blinks_t[idx_j,0]):int(fs*p_blinks_t[idx_j,1]), chan_id] # left side of the blink dip
+            blink_j_right = data_sig[int(fs*p_blinks_t[idx_j,1]):int(fs*p_blinks_t[idx_j,2]), chan_id] # right side of the blink dip
 
-            left_interp = interp1d(np.arange(blink_i_left.size), blink_i_left)
+            left_interp = interp1d(np.arange(blink_i_left.size), blink_i_left) 
             compress_left = left_interp(np.linspace(0,blink_i_left.size-1, blink_j_left.size))
             right_interp = interp1d(np.arange(blink_i_right.size), blink_i_right)
             compress_right = right_interp(np.linspace(0,blink_i_right.size-1, blink_j_right.size))
@@ -351,6 +356,8 @@ groups = fcluster(Z,2,'maxclust')
 grp_1_blinks_var = [blink_var[i] for i, x in enumerate(groups==1) if x]
 grp_2_blinks_var = [blink_var[i] for i, x in enumerate(groups==2) if x]
 
+
+#selection algorithm for group1 vs group2
 if np.mean(grp_1_blinks_var) > np.mean(grp_2_blinks_var) and np.mean(grp_1_blinks_var)/np.mean(grp_2_blinks_var) > 10:
     blink_index = [blink_index[i] for i, x in enumerate(groups==1) if x]
 elif np.mean(grp_2_blinks_var) > np.mean(grp_1_blinks_var) and np.mean(grp_2_blinks_var)/np.mean(grp_1_blinks_var) > 10:
