@@ -102,7 +102,8 @@ def end_experiment():
     experiment_running = False
     win.flip()
 
-def main():
+
+def write_data_file():
     BoardShim.enable_dev_board_logger()
 
     # use synthetic board for demo
@@ -125,32 +126,41 @@ def main():
     restored_data = DataFilter.read_file('test.csv')
     restored_df = pd.DataFrame(np.transpose(restored_data))
 
+# Simon's code for Brainflow + getting parameters
+params = BrainFlowInputParams()
+if CYTON_BOARD_ID != 6:
+    params.serial_port = find_openbci_port()
+elif CYTON_BOARD_ID == 6:
+    params.ip_port = 9000
+board = BoardShim(CYTON_BOARD_ID, params)
+board.prepare_session()
+res_query = board.config_board('/0')
 
-if __name__ == "__main__":
-    main()
+res_query = board.config_board('//')
 
-# Run
-def run_experiment():
-    calibration_phase()  
-    trials = generate_experiment_trials()
+res_query = board.config_board(ANALOGUE_MODE)
 
-    for trial_num, trial_artifacts in enumerate(trials, start=1):
-        trial_reminder(trial_num)  
+board.start_stream(45000)
+
+# Performing the Experiment
+calibration_phase()  
+trials = generate_experiment_trials()
+
+for trial_num, trial_artifacts in enumerate(trials, start=1):
+    trial_reminder(trial_num)  
         
-        logging.log(level=logging.DATA, msg=f'Starting trial {trial_num}')
-        for artifact in trial_artifacts:
-            logging.log(level=logging.DATA, msg=f'Starting artifact: {artifact}')
-            present_cue(artifact)  
+    logging.log(level=logging.DATA, msg=f'Starting trial {trial_num}')
+    for artifact in trial_artifacts:
+        logging.log(level=logging.DATA, msg=f'Starting artifact: {artifact}')
+        present_cue(artifact)
+        write_data_file()  
 
         # Display rest break
-        rest_break = visual.TextStim(win, text="End of Trial. Rest Break", color="white", height=30, pos=(0, 150))
-        fixation.draw()  
-        rest_break.draw()
-        win.flip()
-        core.wait(10.0)
+    rest_break = visual.TextStim(win, text="End of Trial. Rest Break", color="white", height=30, pos=(0, 150))
+    fixation.draw()  
+    rest_break.draw()
+    win.flip()
+    core.wait(10.0)
 
-    end_experiment()
-    win.close()
-
-
-run_experiment()
+end_experiment()
+win.close()
