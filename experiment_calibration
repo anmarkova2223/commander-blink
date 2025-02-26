@@ -19,13 +19,20 @@ logging.setDefaultClock(core.Clock())
 
 # Calibration
 def calibration_phase(duration=15.0):
-    instruction = visual.TextStim(win, text="Please relax, watch the screen and blink naturally.",
-                                  color="white", height=30)
-    instruction.draw()
-    win.flip()
+    instruction = visual.TextStim(win, 
+                                  text="Fix your eyes. Watch the screen and blink naturally for 15s.", 
+                                  color="white", height=30, pos=(0, 100))  
+
+    start_time = core.getTime()  
     logging.log(level=logging.DATA, msg="Calibration phase started.")
-    core.wait(duration)  
+
+    while core.getTime() - start_time < duration:
+        fixation.draw()  
+        instruction.draw()  
+        win.flip()
+
     logging.log(level=logging.DATA, msg="Calibration phase ended.")
+
 
 # Reminder
 def trial_reminder(trial_num):
