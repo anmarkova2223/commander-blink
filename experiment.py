@@ -1,12 +1,15 @@
 from psychopy import visual, core, logging, event
 import random
 
+experiment_running = True 
+
 # Create window
 win = visual.Window([800, 600], color="black", units="pix")
 
 # Create fixation cross and cue
 fixation = visual.TextStim(win, text="+", color="white", height=50)
 cue = visual.TextStim(win, text="Perform the action", color="white", height=30)
+
 
 # List of artifacts
 artifacts = ['jaw_clench', 'double_blink', 'jaw_clench_blink', 'blink_hard']
@@ -36,11 +39,16 @@ def trial_reminder(trial_num):
     logging.log(level=logging.DATA, msg=f'Reminder before Trial {trial_num}')
     event.waitKeys()  #
 
-# Fixation cross
-def present_fixation(duration):
-    fixation.draw()
+# Fixation cross, present as soon as calibration ends
+def present_fixation():
+    while experiment_running:
+        fixation.draw()
+        win.flip()
+
+# ends experiment, removes +
+def end_experiment():
+    experiment_running = False
     win.flip()
-    core.wait(duration)
 
 # Cues and logging artifact data
 def present_cue(artifact, duration=2.0):
@@ -87,16 +95,17 @@ def run_experiment():
         trial_reminder(trial_num)  
         
         logging.log(level=logging.DATA, msg=f'Starting trial {trial_num}')
-        
+        present_fixation()
         for artifact in trial_artifacts:
             logging.log(level=logging.DATA, msg=f'Starting artifact: {artifact}')
-            present_fixation(1.0)
             present_cue(artifact)
 
         rest_break = visual.TextStim(win, text="End of Trial. Rest Break", color="white", height=30)
         rest_break.draw()
         win.flip()
         core.wait(10.0)
+
+    end_experiment()
 
     win.close()
 
