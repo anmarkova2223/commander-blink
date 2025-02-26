@@ -55,8 +55,14 @@ def present_cue(artifact, duration=2.0):
     cue.setText(f"{artifact}")
     cue.draw()
     win.flip()
-    logging.log(level=logging.DATA, msg=f'Artifact presented: {artifact}')
+    logging.log(level=logging.DATA, msg=f'Artifact cue presented: {artifact}')
     core.wait(duration) 
+
+    cue.setText("Begin artifact")
+    cue.draw()
+    win.flip()
+    logging.log(level=logging.DATA, msg=f'Action cue presented: {artifact}')
+    core.wait(3.0)
 
 # Randomized
 def generate_experiment_trials(num_trials=3, num_samples_per_trial=40):
