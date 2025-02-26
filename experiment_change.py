@@ -8,7 +8,7 @@ win = visual.Window([800, 600], color="black", units="pix")
 
 # Create fixation cross and cue
 fixation = visual.TextStim(win, text="+", color="white", height=50, pos=(0, 0))  
-cue = visual.TextStim(win, text="", color="white", height=30, pos=(0, 100))  
+cue = visual.TextStim(win, text="", color="white", height=30, pos=(0, 0))  
 
 # List of artifacts
 artifacts = ['jaw_clench', 'double_blink', 'jaw_clench_blink', 'blink_hard']
@@ -48,7 +48,7 @@ def trial_reminder(trial_num):
 
 # Cues and logging artifact data
 def present_cue(artifact, duration=2.0):
-    fixation.draw()
+    #fixation.draw()
     cue.setText(f"{artifact}")
     cue.draw()
     win.flip()
@@ -57,11 +57,11 @@ def present_cue(artifact, duration=2.0):
 
     # Display fixation and "Begin artifact" message together
     fixation.draw()
-    cue.setText("Begin artifact")
-    cue.draw()
+    #cue.setText("Begin artifact")
+    #cue.draw()
     win.flip()
     logging.log(level=logging.DATA, msg=f'Action cue presented: {artifact}')
-    core.wait(3.0)
+    core.wait(1.5)
 
 # Randomized
 def generate_experiment_trials(num_trials=3, num_samples_per_trial=40):
@@ -89,6 +89,10 @@ def generate_experiment_trials(num_trials=3, num_samples_per_trial=40):
         random.shuffle(trial)  
     
     return trials
+
+def end_experiment():
+    experiment_running = False
+    win.flip()
 
 # Run
 def run_experiment():
