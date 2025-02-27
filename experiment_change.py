@@ -114,34 +114,29 @@ def end_experiment():
 def write_data_file(trial_num):
     BoardShim.enable_dev_board_logger()
 
-    params = BrainFlowInputParams()
-    board = BoardShim(BoardIds.SYNTHETIC_BOARD.value, params)
-
-    # params = BrainFlowInputParams()
-    # params.serial_port = find_openbci_port()
-    # board = BoardShim(CYTON_BOARD_ID, params)
-
-    board.prepare_session()
-    board.start_stream()
     BoardShim.log_message(LogLevels.LEVEL_INFO.value, 'start sleeping in the main thread')
-    time.sleep(10)
+    time.sleep(2)
     data = board.get_board_data()
-    board.stop_stream()
-    board.release_session()
+    # board.stop_stream() -- what is this???
+    # board.release_session()  -- what is this???
 
     # demo how to convert it to pandas DF and plot data
-    eeg_channels = BoardShim.get_eeg_channels(BoardIds.SYNTHETIC_BOARD.value)
+    eeg_channels = BoardShim.get_eeg_channels(BoardIds.SYNTHETIC_BOARD.value) #CYTON_BOARD_ID.value me thinks
+    # eeg_channels = BoardShim.get_eeg_channels(CYTON_BOARD_ID) #work in progress
     df = pd.DataFrame(np.transpose(data))
 
     # demo for data serialization using brainflow API, we recommend to use it instead pandas.to_csv()
     filename = f"trial_{trial_num}.csv"
     DataFilter.write_file(data, filename, 'a')  # use 'a' for append mode
+    # board.prepare_session()  -- what is this???
+    # board.start_stream()  -- what is this???
 
 
 # Simon's code for Brainflow + getting parameters
 if cyton_in: 
     CYTON_BOARD_ID = 0 
     BAUD_RATE = 115200
+    ANALOGUE_MODE = '/2'
 
     #Finds the port to which the Cyton Dongle is connected to.
 def find_openbci_port(): 
@@ -205,7 +200,9 @@ def find_openbci_port():
 
 # Performing the Experiment
 params = BrainFlowInputParams()  #this sets up the connection Parameters
-    
+
+# board = BoardShim(BoardIds.SYNTHETIC_BOARD.value, params)
+
 if CYTON_BOARD_ID != 6:
     params.serial_port = find_openbci_port()
 elif CYTON_BOARD_ID == 6:
@@ -215,7 +212,7 @@ board.prepare_session()
 res_query = board.config_board('/0')
 res_query = board.config_board('//')
 res_query = board.config_board(ANALOGUE_MODE)
-board.start_stream(45000)
+board.start_stream() #what is 45000????
 
 calibration_phase()  
 trials = generate_experiment_trials()
@@ -227,7 +224,7 @@ for trial_num, trial_artifacts in enumerate(trials, start=1):
     for artifact in trial_artifacts:
         logging.log(level=logging.DATA, msg=f'Starting artifact: {artifact}')
         marker = artifact_marker[artifact]
-        present_cue(marker)
+        present_cue(artifact, marker)
         write_data_file(trial_num)  
 
         # Display rest break
