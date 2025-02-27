@@ -8,8 +8,11 @@ import pandas as pd
 
 from brainflow.board_shim import BoardShim, BrainFlowInputParams, LogLevels, BoardIds
 from brainflow.data_filter import DataFilter
+import sys
+import glob
 
-experiment_running = True 
+experiment_running = True
+cyton_in = True 
 
 # Create window
 win = visual.Window([800, 600], color="black", units="pix")
@@ -185,15 +188,15 @@ if cyton_in:
 
 #Responsible for collecting EEG data from the OpenBCI Cyton board 
 def get_data(queue_in, lsl_out=False):
-        while not stop_event.is_set():
-            data_in = board.get_board_data()
-            timestamp_in = data_in[board.get_timestamp_channel(CYTON_BOARD_ID)]
-            eeg_in = data_in[board.get_eeg_channels(CYTON_BOARD_ID)]
-            aux_in = data_in[board.get_analog_channels(CYTON_BOARD_ID)]
-            if len(timestamp_in) > 0:
-                print('queue-in: ', eeg_in.shape, aux_in.shape, timestamp_in.shape)
-                queue_in.put((eeg_in, aux_in, timestamp_in))
-            time.sleep(0.1)
+    while not stop_event.is_set():
+        data_in = board.get_board_data()
+        timestamp_in = data_in[board.get_timestamp_channel(CYTON_BOARD_ID)]
+        eeg_in = data_in[board.get_eeg_channels(CYTON_BOARD_ID)]
+        aux_in = data_in[board.get_analog_channels(CYTON_BOARD_ID)]
+        if len(timestamp_in) > 0:
+            print('queue-in: ', eeg_in.shape, aux_in.shape, timestamp_in.shape)
+            queue_in.put((eeg_in, aux_in, timestamp_in))
+        time.sleep(0.1)
     
     queue_in = Queue()
     cyton_thread = Thread(target=get_data, args=(queue_in, lsl_out))
