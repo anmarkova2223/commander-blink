@@ -127,85 +127,20 @@ def write_data_file():
     restored_df = pd.DataFrame(np.transpose(restored_data))
 
 # Simon's code for Brainflow + getting parameters
-if cyton_in: 
-    CYTON_BOARD_ID = 0 
-    BAUD_RATE = 115200
+params = BrainFlowInputParams()
+if CYTON_BOARD_ID != 6:
+    params.serial_port = find_openbci_port()
+elif CYTON_BOARD_ID == 6:
+    params.ip_port = 9000
+board = BoardShim(CYTON_BOARD_ID, params)
+board.prepare_session()
+res_query = board.config_board('/0')
 
-    #Finds the port to which the Cyton Dongle is connected to.
-    def find_openbci_port(): 
-        # Find serial port names per OS
-        if sys.platform.startswith('win'):
-            ports = ['COM%s' % (i + 1) for i in range(256)]
-        elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
-            ports = glob.glob('/dev/ttyUSB*')
-        elif sys.platform.startswith('darwin'):
-            ports = glob.glob('/dev/cu.usbserial*')
-        else:
-            raise EnvironmentError('Error finding ports on your operating system')
-        openbci_port = ''
-        for port in ports:
-            try:
-                s = Serial(port=port, baudrate=BAUD_RATE, timeout=None)
-                s.write(b'v')
-                line = ''
-                time.sleep(2)
-                if s.inWaiting():
-                    line = ''
-                    c = ''
-                    while '$$$' not in line:
-                        c = s.read().decode('utf-8', errors='replace')
-                        line += c
-                    if 'OpenBCI' in line:
-                        openbci_port = port
-                s.close()
-            except (OSError, serial.SerialException):
-                pass
-        if openbci_port == '':
-            raise OSError('Cannot find OpenBCI port.')
-            exit()
-        else:
-            return openbci_port
-        
-    print(BoardShim.get_board_descr(CYTON_BOARD_ID))
+res_query = board.config_board('//')
 
-    
-    params = BrainFlowInputParams()  #this sets up the connection Parameters
-    
-    if CYTON_BOARD_ID != 6:
-        params.serial_port = find_openbci_port()
-    elif CYTON_BOARD_ID == 6:
-        params.ip_port = 9000
-    board = BoardShim(CYTON_BOARD_ID, params)
-    board.prepare_session()
-    res_query = board.config_board('/0')
-    res_query = board.config_board('//')
-    res_query = board.config_board(ANALOGUE_MODE)
-    board.start_stream(45000)
-    stop_event= Event()
+res_query = board.config_board(ANALOGUE_MODE)
 
-#Responsible for collecting EEG data from the OpenBCI Cyton board 
-def get_data(queue_in, lsl_out=False):
-        while not stop_event.is_set():
-            data_in = board.get_board_data()
-            timestamp_in = data_in[board.get_timestamp_channel(CYTON_BOARD_ID)]
-            eeg_in = data_in[board.get_eeg_channels(CYTON_BOARD_ID)]
-            aux_in = data_in[board.get_analog_channels(CYTON_BOARD_ID)]
-            if len(timestamp_in) > 0:
-                print('queue-in: ', eeg_in.shape, aux_in.shape, timestamp_in.shape)
-                queue_in.put((eeg_in, aux_in, timestamp_in))
-            time.sleep(0.1)
-    
-    queue_in = Queue()
-    cyton_thread = Thread(target=get_data, args=(queue_in, lsl_out))
-    cyton_thread.daemon = True
-    cyton_thread.start()
-
-    if os.path.exists(model_file_path):
-        with open(model_file_path, 'rb') as f:
-            model = pickle.load(f)
-    else:
-        model = None
-
+board.start_stream(45000)
 
 # Performing the Experiment
 calibration_phase()  
