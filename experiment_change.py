@@ -25,6 +25,8 @@ cue = visual.TextStim(win, text="", color="white", height=30, pos=(0, 0))
 # List of artifacts
 artifacts = ['jaw_clench', 'double_blink', 'jaw_clench_blink', 'blink_hard']
 
+artifact_marker = {artifacts[i]: i + 1 for i in range(len(artifacts))}
+
 # Logging
 logging.setDefaultClock(core.Clock())
 
@@ -59,7 +61,7 @@ def trial_reminder(trial_num):
     event.waitKeys()  
 
 # Cues and logging artifact data
-def present_cue(artifact, duration=2.0):
+def present_cue(artifact, marker, duration=2.0):
     #fixation.draw()
     cue.setText(f"{artifact}")
     cue.draw()
@@ -69,9 +71,11 @@ def present_cue(artifact, duration=2.0):
 
     # Display fixation and "Begin artifact" message together
     fixation.draw()
+    board.insert_marker(marker)
     #cue.setText("Begin artifact")
     #cue.draw()
     win.flip()
+    board.insert_marker(marker)
     logging.log(level=logging.DATA, msg=f'Action cue presented: {artifact}')
     core.wait(1.5)
 
@@ -107,12 +111,15 @@ def end_experiment():
     win.flip()
 
 
-def write_data_file():
+def write_data_file(trial_num):
     BoardShim.enable_dev_board_logger()
 
     params = BrainFlowInputParams()
-    params.serial_port = find_openbci_port()
-    board = BoardShim(CYTON_BOARD_ID, params)
+    board = BoardShim(BoardIds.SYNTHETIC_BOARD.value, params)
+
+    # params = BrainFlowInputParams()
+    # params.serial_port = find_openbci_port()
+    # board = BoardShim(CYTON_BOARD_ID, params)
 
     board.prepare_session()
     board.start_stream()
@@ -127,8 +134,8 @@ def write_data_file():
     df = pd.DataFrame(np.transpose(data))
 
     # demo for data serialization using brainflow API, we recommend to use it instead pandas.to_csv()
-    filename = f"trial_{trial_num}_{artifact}.csv"
-    DataFilter.write_file(data, filename, 'w')  # use 'a' for append mode
+    filename = f"trial_{trial_num}.csv"
+    DataFilter.write_file(data, filename, 'a')  # use 'a' for append mode
 
 
 # Simon's code for Brainflow + getting parameters
@@ -219,8 +226,9 @@ for trial_num, trial_artifacts in enumerate(trials, start=1):
     logging.log(level=logging.DATA, msg=f'Starting trial {trial_num}')
     for artifact in trial_artifacts:
         logging.log(level=logging.DATA, msg=f'Starting artifact: {artifact}')
-        present_cue(artifact)
-        write_data_file()  
+        marker = artifact_marker[artifact]
+        present_cue(marker)
+        write_data_file(trial_num)  
 
         # Display rest break
     rest_break = visual.TextStim(win, text="End of Trial. Rest Break", color="white", height=30, pos=(0, 150))
