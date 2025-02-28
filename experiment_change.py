@@ -1,6 +1,5 @@
 from psychopy import visual, core, logging, event
 import random
-import serial
 
 import time
 
@@ -9,8 +8,11 @@ import pandas as pd
 
 from brainflow.board_shim import BoardShim, BrainFlowInputParams, LogLevels, BoardIds
 from brainflow.data_filter import DataFilter
-import sys
-import glob
+
+import glob, sys, time, serial
+from serial import Serial
+from threading import Thread, Event
+from queue import Queue
 
 experiment_running = True
 cyton_in = True 
@@ -121,8 +123,8 @@ def write_data_file(trial_num):
     # board.release_session()  -- what is this???
 
     # demo how to convert it to pandas DF and plot data
-    eeg_channels = BoardShim.get_eeg_channels(BoardIds.SYNTHETIC_BOARD.value) #CYTON_BOARD_ID.value me thinks
-    # eeg_channels = BoardShim.get_eeg_channels(CYTON_BOARD_ID) #work in progress
+    # eeg_channels = BoardShim.get_eeg_channels(BoardIds.SYNTHETIC_BOARD.value) #CYTON_BOARD_ID.value me thinks
+    eeg_channels = BoardShim.get_eeg_channels(CYTON_BOARD_ID) #work in progress
     df = pd.DataFrame(np.transpose(data))
 
     # demo for data serialization using brainflow API, we recommend to use it instead pandas.to_csv()
@@ -141,12 +143,14 @@ if cyton_in:
     #Finds the port to which the Cyton Dongle is connected to.
 def find_openbci_port(): 
     # Find serial port names per OS
+    print(sys.platform)
     if sys.platform.startswith('win'):
         ports = ['COM%s' % (i + 1) for i in range(256)]
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         ports = glob.glob('/dev/ttyUSB*')
     elif sys.platform.startswith('darwin'):
         ports = glob.glob('/dev/cu.usbserial*')
+        print(ports)
     else:
         raise EnvironmentError('Error finding ports on your operating system')
     openbci_port = ''
@@ -174,7 +178,7 @@ def find_openbci_port():
         return openbci_port
         
 
-# #Responsible for collecting EEG data from the OpenBCI Cyton board 
+#Responsible for collecting EEG data from the OpenBCI Cyton board 
 # def get_data(queue_in, lsl_out=False):
 #     while not stop_event.is_set():
 #         data_in = board.get_board_data()
@@ -185,17 +189,23 @@ def find_openbci_port():
 #             print('queue-in: ', eeg_in.shape, aux_in.shape, timestamp_in.shape)
 #             queue_in.put((eeg_in, aux_in, timestamp_in))
 #         time.sleep(0.1)
+#     while not queue_in.empty(): # Collect all data from the queue
+#                     eeg_in, aux_in, timestamp_in = queue_in.get()
+#                     print('data-in: ', eeg_in.shape, aux_in.shape, timestamp_in.shape)
+#                     eeg = np.concatenate((eeg, eeg_in), axis=1)
+#                     aux = np.concatenate((aux, aux_in), axis=1)
+#                     timestamp = np.concatenate((timestamp, timestamp_in), axis=0)
     
 #     queue_in = Queue()
 #     cyton_thread = Thread(target=get_data, args=(queue_in, lsl_out))
 #     cyton_thread.daemon = True
 #     cyton_thread.start()
 
-#     if os.path.exists(model_file_path):
-#         with open(model_file_path, 'rb') as f:
-#             model = pickle.load(f)
-#     else:
-#         model = None
+    # if os.path.exists(model_file_path):
+    #     with open(model_file_path, 'rb') as f:
+    #         model = pickle.load(f)
+    # else:
+    #     model = None
 
 
 # Performing the Experiment
@@ -212,6 +222,7 @@ board.prepare_session()
 res_query = board.config_board('/0')
 res_query = board.config_board('//')
 res_query = board.config_board(ANALOGUE_MODE)
+# stop_event = Event()
 board.start_stream() #what is 45000????
 
 calibration_phase()  
