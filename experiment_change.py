@@ -15,10 +15,14 @@ from threading import Thread, Event
 from queue import Queue
 
 experiment_running = True
-cyton_in = True 
+cyton_in = True
+test = True 
 
 # Create window
-win = visual.Window([800, 600], color="black", units="pix")
+width = 1440
+height = 900
+
+win = visual.Window([1440, 900], color="black", units="pix", fullscr= True)
 
 # Create fixation cross and cue
 fixation = visual.TextStim(win, text="+", color="white", height=50, pos=(0, 0))  
@@ -81,6 +85,14 @@ def present_cue(artifact, marker, duration=2.0):
     logging.log(level=logging.DATA, msg=f'Action cue presented: {artifact}')
     core.wait(1.5)
 
+# Simon's code for creating photosensor
+def create_photosensor_dot(size=2/8*0.7):
+    ratio = width/height
+    dot_size = size * min(width, height)
+    return visual.Rect(win=win, units="pix", width=dot_size, height=dot_size * ratio, 
+                       fillColor='white', pos = (width/2 - dot_size/2, -height/2 + dot_size/2) #[1 - size/2, -1 - size/8]
+    )
+
 # Randomized
 def generate_experiment_trials(num_trials=3, num_samples_per_trial=40):
     """
@@ -123,8 +135,10 @@ def write_data_file(trial_num):
     # board.release_session()  -- what is this???
 
     # demo how to convert it to pandas DF and plot data
-    # eeg_channels = BoardShim.get_eeg_channels(BoardIds.SYNTHETIC_BOARD.value) #CYTON_BOARD_ID.value me thinks
-    eeg_channels = BoardShim.get_eeg_channels(CYTON_BOARD_ID) #work in progress
+    if test:
+        eeg_channels = BoardShim.get_eeg_channels(BoardIds.SYNTHETIC_BOARD.value) #CYTON_BOARD_ID.value me thinks
+    else:
+        eeg_channels = BoardShim.get_eeg_channels(CYTON_BOARD_ID) #work in progress
     df = pd.DataFrame(np.transpose(data))
 
     # demo for data serialization using brainflow API, we recommend to use it instead pandas.to_csv()
@@ -211,22 +225,26 @@ def find_openbci_port():
 # Performing the Experiment
 params = BrainFlowInputParams()  #this sets up the connection Parameters
 
-# board = BoardShim(BoardIds.SYNTHETIC_BOARD.value, params)
-
-if CYTON_BOARD_ID != 6:
-    params.serial_port = find_openbci_port()
-elif CYTON_BOARD_ID == 6:
-    params.ip_port = 9000
-board = BoardShim(CYTON_BOARD_ID, params)
-board.prepare_session()
-res_query = board.config_board('/0')
-res_query = board.config_board('//')
-res_query = board.config_board(ANALOGUE_MODE)
+if test:
+    board = BoardShim(BoardIds.SYNTHETIC_BOARD.value, params)
+if not test:
+    if CYTON_BOARD_ID != 6:
+        params.serial_port = find_openbci_port()
+    elif CYTON_BOARD_ID == 6:
+        params.ip_port = 9000
+    board = BoardShim(CYTON_BOARD_ID, params)
+    res_query = board.config_board('/0')
+    res_query = board.config_board('//')
+    res_query = board.config_board(ANALOGUE_MODE)
 # stop_event = Event()
+board.prepare_session()
 board.start_stream() #what is 45000????
 
 calibration_phase()  
 trials = generate_experiment_trials()
+photosensor_dot = create_photosensor_dot()
+photosensor_dot.color = np.array([-1, -1, -1])
+photosensor_dot.draw()
 
 for trial_num, trial_artifacts in enumerate(trials, start=1):
     trial_reminder(trial_num)  
@@ -234,8 +252,10 @@ for trial_num, trial_artifacts in enumerate(trials, start=1):
     logging.log(level=logging.DATA, msg=f'Starting trial {trial_num}')
     for artifact in trial_artifacts:
         logging.log(level=logging.DATA, msg=f'Starting artifact: {artifact}')
-        marker = artifact_marker[artifact]
+        # marker = artifact_marker[artifact]
         present_cue(artifact, marker)
+        photosensor_dot.color = np.array([1, 1, 1])
+        photosensor_dot.draw()
         write_data_file(trial_num)  
 
         # Display rest break
