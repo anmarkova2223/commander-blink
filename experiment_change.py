@@ -17,12 +17,13 @@ from queue import Queue
 experiment_running = True
 cyton_in = True
 test = True 
+calibrate = False
 
 # Create window
 width = 1440
 height = 900
 
-win = visual.Window([1440, 900], color="black", units="pix", fullscr= True)
+win = visual.Window([1440, 900], color="black", units="pix", fullscr= False)
 
 # Create fixation cross and cue
 fixation = visual.TextStim(win, text="+", color="white", height=50, pos=(0, 0))  
@@ -67,7 +68,7 @@ def trial_reminder(trial_num):
     event.waitKeys()  
 
 # Cues and logging artifact data
-def present_cue(artifact, marker, duration=2.0):
+def present_cue(artifact, duration=2.0):
     #fixation.draw()
     cue.setText(f"{artifact}")
     cue.draw()
@@ -76,12 +77,16 @@ def present_cue(artifact, marker, duration=2.0):
     core.wait(duration) 
 
     # Display fixation and "Begin artifact" message together
+    photosensor_dot.color = np.array([1, 1, 1])
+    photosensor_dot.draw()
     fixation.draw()
-    board.insert_marker(marker)
+    # board.insert_marker(marker)
     #cue.setText("Begin artifact")
     #cue.draw()
     win.flip()
-    board.insert_marker(marker)
+    photosensor_dot.color = np.array([-1, -1, -1])
+    photosensor_dot.draw()
+    # board.insert_marker(marker)
     logging.log(level=logging.DATA, msg=f'Action cue presented: {artifact}')
     core.wait(1.5)
 
@@ -240,7 +245,8 @@ if not test:
 board.prepare_session()
 board.start_stream() #what is 45000????
 
-calibration_phase()  
+if calibrate:
+    calibration_phase()  
 trials = generate_experiment_trials()
 photosensor_dot = create_photosensor_dot()
 photosensor_dot.color = np.array([-1, -1, -1])
@@ -253,9 +259,7 @@ for trial_num, trial_artifacts in enumerate(trials, start=1):
     for artifact in trial_artifacts:
         logging.log(level=logging.DATA, msg=f'Starting artifact: {artifact}')
         # marker = artifact_marker[artifact]
-        present_cue(artifact, marker)
-        photosensor_dot.color = np.array([1, 1, 1])
-        photosensor_dot.draw()
+        present_cue(artifact)
         write_data_file(trial_num)  
 
         # Display rest break
