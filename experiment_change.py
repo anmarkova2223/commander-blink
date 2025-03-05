@@ -16,8 +16,10 @@ from queue import Queue
 
 experiment_running = True
 cyton_in = True
-test = True 
-calibrate = False
+test = False
+lsl_out = False
+calibrate = True
+
 
 # Create window
 width = 1440
@@ -68,7 +70,7 @@ def trial_reminder(trial_num):
     event.waitKeys()  
 
 # Cues and logging artifact data
-def present_cue(artifact, duration=2.0):
+def present_cue(artifact, duration=1.0):
     #fixation.draw()
     cue.setText(f"{artifact}")
     cue.draw()
@@ -80,6 +82,7 @@ def present_cue(artifact, duration=2.0):
     photosensor_dot.color = np.array([1, 1, 1])
     photosensor_dot.draw()
     fixation.draw()
+    core.wait(1.0)
     # board.insert_marker(marker)
     #cue.setText("Begin artifact")
     #cue.draw()
@@ -88,7 +91,7 @@ def present_cue(artifact, duration=2.0):
     photosensor_dot.draw()
     # board.insert_marker(marker)
     logging.log(level=logging.DATA, msg=f'Action cue presented: {artifact}')
-    core.wait(1.5)
+    core.wait(1.0)
 
 # Simon's code for creating photosensor
 def create_photosensor_dot(size=2/8*0.7):
@@ -140,15 +143,20 @@ def write_data_file(trial_num):
     # board.release_session()  -- what is this???
 
     # demo how to convert it to pandas DF and plot data
-    if test:
-        eeg_channels = BoardShim.get_eeg_channels(BoardIds.SYNTHETIC_BOARD.value) #CYTON_BOARD_ID.value me thinks
-    else:
-        eeg_channels = BoardShim.get_eeg_channels(CYTON_BOARD_ID) #work in progress
-    df = pd.DataFrame(np.transpose(data))
+    # if test:
+    #     eeg_channels = BoardShim.get_eeg_channels(BoardIds.SYNTHETIC_BOARD.value) #CYTON_BOARD_ID.value me thinks
+    # else:
+    #     eeg_channels = board.get_eeg_channels(CYTON_BOARD_ID) #work in progress
+    #     aux_channels = board.get_analog_channels(CYTON_BOARD_ID)
+    #     data = np.hstack((eeg_channels, aux_channels))
+    # df = pd.DataFrame(np.transpose(data))
+    # df.columns = eeg_channels + aux_channels
 
     # demo for data serialization using brainflow API, we recommend to use it instead pandas.to_csv()
     filename = f"trial_{trial_num}.csv"
     DataFilter.write_file(data, filename, 'a')  # use 'a' for append mode
+    # DataFilter.write_file(eeg_channels, f'eeg_data_trial{trial_num}', 'a')
+    # DataFilter.write_file(aux_channels, f'aux_data_trial{trial_num}', 'a')
     # board.prepare_session()  -- what is this???
     # board.start_stream()  -- what is this???
 
@@ -198,28 +206,23 @@ def find_openbci_port():
         
 
 #Responsible for collecting EEG data from the OpenBCI Cyton board 
-# def get_data(queue_in, lsl_out=False):
-#     while not stop_event.is_set():
-#         data_in = board.get_board_data()
-#         timestamp_in = data_in[board.get_timestamp_channel(CYTON_BOARD_ID)]
-#         eeg_in = data_in[board.get_eeg_channels(CYTON_BOARD_ID)]
-#         aux_in = data_in[board.get_analog_channels(CYTON_BOARD_ID)]
-#         if len(timestamp_in) > 0:
-#             print('queue-in: ', eeg_in.shape, aux_in.shape, timestamp_in.shape)
-#             queue_in.put((eeg_in, aux_in, timestamp_in))
-#         time.sleep(0.1)
-#     while not queue_in.empty(): # Collect all data from the queue
-#                     eeg_in, aux_in, timestamp_in = queue_in.get()
-#                     print('data-in: ', eeg_in.shape, aux_in.shape, timestamp_in.shape)
-#                     eeg = np.concatenate((eeg, eeg_in), axis=1)
-#                     aux = np.concatenate((aux, aux_in), axis=1)
-#                     timestamp = np.concatenate((timestamp, timestamp_in), axis=0)
-    
-#     queue_in = Queue()
-#     cyton_thread = Thread(target=get_data, args=(queue_in, lsl_out))
-#     cyton_thread.daemon = True
-#     cyton_thread.start()
-
+def get_data(queue_in, lsl_out=False):
+    while not stop_event.is_set():
+        data_in = board.get_board_data()
+        timestamp_in = data_in[board.get_timestamp_channel(CYTON_BOARD_ID)]
+        eeg_in = data_in[board.get_eeg_channels(CYTON_BOARD_ID)]
+        aux_in = data_in[board.get_analog_channels(CYTON_BOARD_ID)]
+        if len(timestamp_in) > 0:
+            print('queue-in: ', eeg_in.shape, aux_in.shape, timestamp_in.shape)
+            queue_in.put((eeg_in, aux_in, timestamp_in))
+        time.sleep(0.1)
+    # while not queue_in.empty(): # Collect all data from the queue
+    #                 eeg_in, aux_in, timestamp_in = queue_in.get()
+    #                 print('data-in: ', eeg_in.shape, aux_in.shape, timestamp_in.shape)
+    #                 eeg = np.concatenate((eeg, eeg_in), axis=1)
+    #                 aux = np.concatenate((aux, aux_in), axis=1)
+    #                 timestamp = np.concatenate((timestamp, timestamp_in), axis=0)
+    # return eeg, aux, timestamp
     # if os.path.exists(model_file_path):
     #     with open(model_file_path, 'rb') as f:
     #         model = pickle.load(f)
@@ -232,7 +235,9 @@ params = BrainFlowInputParams()  #this sets up the connection Parameters
 
 if test:
     board = BoardShim(BoardIds.SYNTHETIC_BOARD.value, params)
-if not test:
+if not test and cyton_in: 
+    BAUD_RATE = 115200
+    ANALOGUE_MODE = '/2'
     if CYTON_BOARD_ID != 6:
         params.serial_port = find_openbci_port()
     elif CYTON_BOARD_ID == 6:
@@ -241,7 +246,13 @@ if not test:
     res_query = board.config_board('/0')
     res_query = board.config_board('//')
     res_query = board.config_board(ANALOGUE_MODE)
-# stop_event = Event()
+
+    queue_in = Queue()
+    cyton_thread = Thread(target=get_data, args=(queue_in, lsl_out))
+    cyton_thread.daemon = True
+    cyton_thread.start()
+   
+stop_event = Event()
 board.prepare_session()
 board.start_stream() #what is 45000????
 
@@ -254,13 +265,38 @@ photosensor_dot.draw()
 
 for trial_num, trial_artifacts in enumerate(trials, start=1):
     trial_reminder(trial_num)  
+
+    #define variables we will write into
+    eeg = np.zeros((8, 0))
+    aux = np.zeros((3, 0))
+    timestamp = np.zeros((0))
         
     logging.log(level=logging.DATA, msg=f'Starting trial {trial_num}')
     for artifact in trial_artifacts:
         logging.log(level=logging.DATA, msg=f'Starting artifact: {artifact}')
         # marker = artifact_marker[artifact]
         present_cue(artifact)
-        write_data_file(trial_num)  
+        if test:
+            write_data_file(trial_num)
+        if not test and cyton_in:
+            get_data(queue_in, lsl_out)
+    
+    while not queue_in.empty(): # Collect all data from the queue
+        eeg_in, aux_in, timestamp_in = queue_in.get()
+        print('data-in: ', eeg_in.shape, aux_in.shape, timestamp_in.shape)
+        eeg = np.concatenate((eeg, eeg_in), axis=1)
+        aux = np.concatenate((aux, aux_in), axis=1)
+        timestamp = np.concatenate((timestamp, timestamp_in), axis=0)
+    print('total: ',eeg.shape, aux.shape, timestamp.shape)
+    # Pre processing data -- fun stuff
+    # photo_trigger = (aux[1] > 20).astype(int)
+    # trial_starts = np.where(np.diff(photo_trigger) == 1)[0] 
+    # trial_ends = np.where(np.diff(photo_trigger) == -1)[0]
+    filename = f"trial_{trial_num}.npy"
+    
+    data = np.vstack((eeg, aux, timestamp)).T
+    np.save(filename, data)
+    # DataFilter.write_file(data, filename, 'a')
 
         # Display rest break
     rest_break = visual.TextStim(win, text="End of Trial. Rest Break", color="white", height=30, pos=(0, 150))
@@ -269,6 +305,7 @@ for trial_num, trial_artifacts in enumerate(trials, start=1):
     win.flip()
     core.wait(10.0)
 
+stop_event.set()
 board.stop_stream()
 board.release_session()
 
