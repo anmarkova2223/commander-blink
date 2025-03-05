@@ -70,7 +70,7 @@ def trial_reminder(trial_num):
     event.waitKeys()  
 
 # Cues and logging artifact data
-def present_cue(artifact, duration=1.0):
+def present_cue(artifact, duration=1.5):
     #fixation.draw()
     cue.setText(f"{artifact}")
     cue.draw()
@@ -82,7 +82,6 @@ def present_cue(artifact, duration=1.0):
     photosensor_dot.color = np.array([1, 1, 1])
     photosensor_dot.draw()
     fixation.draw()
-    core.wait(1.0)
     # board.insert_marker(marker)
     #cue.setText("Begin artifact")
     #cue.draw()
@@ -91,7 +90,7 @@ def present_cue(artifact, duration=1.0):
     photosensor_dot.draw()
     # board.insert_marker(marker)
     logging.log(level=logging.DATA, msg=f'Action cue presented: {artifact}')
-    core.wait(1.0)
+    core.wait(1.5)
 
 # Simon's code for creating photosensor
 def create_photosensor_dot(size=2/8*0.7):
@@ -235,6 +234,9 @@ params = BrainFlowInputParams()  #this sets up the connection Parameters
 
 if test:
     board = BoardShim(BoardIds.SYNTHETIC_BOARD.value, params)
+    stop_event = Event()
+# board.prepare_session()
+    board.start_stream() #what is 45000????
 if not test and cyton_in: 
     BAUD_RATE = 115200
     ANALOGUE_MODE = '/2'
@@ -243,22 +245,28 @@ if not test and cyton_in:
     elif CYTON_BOARD_ID == 6:
         params.ip_port = 9000
     board = BoardShim(CYTON_BOARD_ID, params)
+    board.prepare_session()
     res_query = board.config_board('/0')
+    print(res_query)
     res_query = board.config_board('//')
+    print(res_query)
     res_query = board.config_board(ANALOGUE_MODE)
+    print(res_query)
+    # board.prepare_session()
+    board.start_stream(450000)
+    stop_event = Event()
 
     queue_in = Queue()
     cyton_thread = Thread(target=get_data, args=(queue_in, lsl_out))
     cyton_thread.daemon = True
     cyton_thread.start()
-   
-stop_event = Event()
-board.prepare_session()
-board.start_stream() #what is 45000????
+
 
 if calibrate:
-    calibration_phase()  
+    calibration_phase()
+np.random.seed(0)  
 trials = generate_experiment_trials()
+np.save('trials.npy', trials)
 photosensor_dot = create_photosensor_dot()
 photosensor_dot.color = np.array([-1, -1, -1])
 photosensor_dot.draw()
@@ -279,7 +287,8 @@ for trial_num, trial_artifacts in enumerate(trials, start=1):
         if test:
             write_data_file(trial_num)
         if not test and cyton_in:
-            get_data(queue_in, lsl_out)
+            # get_data(queue_in, lsl_out)
+            pass
     
     while not queue_in.empty(): # Collect all data from the queue
         eeg_in, aux_in, timestamp_in = queue_in.get()
@@ -305,7 +314,7 @@ for trial_num, trial_artifacts in enumerate(trials, start=1):
     win.flip()
     core.wait(10.0)
 
-stop_event.set()
+stop_event.set()   
 board.stop_stream()
 board.release_session()
 
