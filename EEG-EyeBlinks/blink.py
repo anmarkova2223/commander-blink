@@ -22,8 +22,8 @@ from scipy.interpolate import interp1d
 
 
 mode = True # mode True means EEG-IO, otherwise v/r (EEG-VV or EEG-VR) data
-data_path = 'EEG-IO' if mode else 'EEG-VV' # or replace w/ EEG-VR
-file_idx = 7
+# data_path = 'EEG-IO' if mode else 'EEG-VV' # or replace w/ EEG-VR
+# file_idx = 7 
 
 fs = 250.0
 chan_id = 1
@@ -47,49 +47,80 @@ def lowpass(sig, fc, fs, butter_filt_order):
     B,A = butter(butter_filt_order, np.array(fc)/(fs/2), btype='low')
     return lfilter(B, A, sig, axis=0)
 
-def decode_stim(data_path, file_stim):
+# def decode_stim(data_path, file_stim):
+#     interval_corrupt = []
+#     blinks = []
+#     n_corrupt = 0
+#     with open(os.path.join(data_path,file_stim)) as csvfile:
+#         readCSV = csv.reader(csvfile, delimiter=',')
+#         for row in readCSV:
+#             if row[0]=="corrupt":
+#                 n_corrupt = int(row[1])
+#             elif n_corrupt > 0:
+#                 if float(row[1]) == -1:
+#                     t_end = data_sig[-1,0]
+#                 else:
+#                     t_end = float(row[1])
+#                 interval_corrupt.append([float(row[0]), t_end])
+#                 n_corrupt = n_corrupt - 1
+#             elif row[0]=="blinks":
+#                 if not n_corrupt==0:
+#                     print("!Error in parsing")
+#             else:
+#                 blinks.append([float(row[0]), int(row[1])])
+#     blinks = np.array(blinks)
+
+#     return interval_corrupt, blinks 
+
+def decode_stim(trial_file):
+    event_data = np.load(trial_file)
     interval_corrupt = []
     blinks = []
     n_corrupt = 0
-    with open(os.path.join(data_path,file_stim)) as csvfile:
-        readCSV = csv.reader(csvfile, delimiter=',')
-        for row in readCSV:
-            if row[0]=="corrupt":
-                n_corrupt = int(row[1])
-            elif n_corrupt > 0:
-                if float(row[1]) == -1:
-                    t_end = data_sig[-1,0]
-                else:
-                    t_end = float(row[1])
-                interval_corrupt.append([float(row[0]), t_end])
-                n_corrupt = n_corrupt - 1
-            elif row[0]=="blinks":
-                if not n_corrupt==0:
-                    print("!Error in parsing")
+    for row in event_data:
+        if row[0]=="corrupt":
+            n_corrupt = int(row[1])
+        elif n_corrupt > 0:
+            if float(row[1]) == -1:
+                t_end = data_sig[-1,0]
             else:
-                blinks.append([float(row[0]), int(row[1])])
+                t_end = float(row[1])
+            interval_corrupt.append([float(row[0]), t_end])
+            n_corrupt = n_corrupt - 1
+        elif row[0]=="blinks":
+            if not n_corrupt==0:
+                print("!Error in parsing")
+        else:
+            blinks.append([float(row[0]), int(row[1])])
     blinks = np.array(blinks)
 
     return interval_corrupt, blinks 
 
 
 # Reading data files
-list_of_files = [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f)) and '_data' in f]
+# list_of_files = [f for f in os.listdir(data_path) if os.path.isfile(os.path.join(data_path, f)) and '_data' in f]
 
-file_sig = list_of_files[file_idx]
-file_stim = list_of_files[file_idx].replace('_data','_labels')
-print ("File Name: ", file_sig, file_stim)
+# file_sig = list_of_files[file_idx]
+# file_stim = list_of_files[file_idx].replace('_data','_labels')
+# print ("File Name: ", file_sig, file_stim)
 
 
 # Loading Data
-if mode:
-    data_sig = np.loadtxt(open(os.path.join(data_path,file_sig), "rb"), delimiter=";", skiprows=1, usecols=(0,1,2))
-else:
-    data_sig = np.loadtxt(open(os.path.join(data_path,file_sig), "rb"), delimiter=",", skiprows=5, usecols=(0,1,2))
-    data_sig = data_sig[0:(int(200*fs)+1),:]
-    data_sig = data_sig[:,0:3]
-    data_sig[:,0] = np.array(range(0,len(data_sig)))/fs
+# if mode:
+#     data_sig = np.loadtxt(open(os.path.join(data_path,file_sig), "rb"), delimiter=";", skiprows=1, usecols=(0,1,2))
+# else:
+#     data_sig = np.loadtxt(open(os.path.join(data_path,file_sig), "rb"), delimiter=",", skiprows=5, usecols=(0,1,2))
+#     data_sig = data_sig[0:(int(200*fs)+1),:]
+#     data_sig = data_sig[:,0:3]
+#     data_sig[:,0] = np.array(range(0,len(data_sig)))/fs
 
+data_sig = np.load('trial_1.npy')
+# print(data_sig[:,[11, 2, 3]])
+data_sig = data_sig[0:(int(200*fs)+1),:]
+data_sig = data_sig[:,[11, 2, 3]]
+data_sig[:, 0] = np.array(range(0,len(data_sig)))/fs
+
+print(len(data_sig))
 # Step1: Low Pass Filter
 data_sig[:,1] = lowpass(data_sig[:,1], 10, fs, 4)
 data_sig[:,2] = lowpass(data_sig[:,2], 10, fs, 4)
@@ -101,7 +132,8 @@ data_len = len(data_sig)
 
 
 # decoding stimulations
-interval_corrupt, gt_blinks = decode_stim(data_path, file_stim)
+# interval_corrupt, gt_blinks = decode_stim(data_path, file_stim)
+# interval_corrupt, gt_blinks = decode_stim("trial_1.npy")
 
 def compute_running_std(data_sig, chan_id, fs):
     # Find running std
@@ -283,6 +315,10 @@ min_pts = np.array(args_chan1['mintab'])
 p_blinks_t, p_blinks_val = find_expoints(min_pts, data_sig, chan_id)
 corr_matrix, pow_matrix = compute_correlation(p_blinks_t, data_sig, chan_id, fs)
 
+print('time:', p_blinks_t)
+np.save('tblinks.npy', p_blinks_t)
+print('Val:', p_blinks_val)
+
        
 # fingerprint
 blink_fp_idx = np.argmax(sum(corr_matrix))
@@ -299,6 +335,8 @@ for idx in blink_index:
 
 from scipy.cluster.hierarchy import linkage
 from scipy.cluster.hierarchy import fcluster
+
+
 
 Z = linkage(blink_templates_corrWpower, 'complete', 'correlation')
 groups = fcluster(Z,2,'maxclust')
@@ -430,7 +468,7 @@ ground_truth =  np.array(ground_truth)
 cmat = np.array([[0,0],[0,0]])
 
 total_pred =  len(pred)
-total_gt = len(gt_blinks)
+# total_gt = len(gt_blinks)
 
 for gt_sample in ground_truth:
     found = False
