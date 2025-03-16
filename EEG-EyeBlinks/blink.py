@@ -101,7 +101,7 @@ data_len = len(data_sig)
 
 
 # decoding stimulations
-interval_corrupt, gt_blinks = decode_stim(data_path, file_stim)
+#interval_corrupt, gt_blinks = decode_stim(data_path, file_stim)
 
 def compute_running_std(data_sig, chan_id, fs):
     # Find running std
@@ -382,88 +382,88 @@ plt.plot(final_blinks_t[:,2], final_blinks_val[:,2],'g.')
 for idx, d in enumerate(final_blinks_t):
     ax1.axvspan(d[0], d[2], alpha=0.5, color='tab:gray')
     
-for i in interval_corrupt:
-    ax1.axvspan(i[0], i[1], alpha=0.5, color='red')
+# for i in interval_corrupt:
+#     ax1.axvspan(i[0], i[1], alpha=0.5, color='red')
     
-for d in gt_blinks:
-    if d[1] < 2:
-        plt.axvline(x=d[0], color='green')
-    elif d[1] == 2:
-        plt.axvline(x=d[0], color='black')
+# for d in gt_blinks:
+#     if d[1] < 2:
+#         plt.axvline(x=d[0], color='green')
+#     elif d[1] == 2:
+#         plt.axvline(x=d[0], color='black')
 
-pred = []
-for blink_intervals in final_blinks_t:
-    blink_start, blink_end = blink_intervals[0], blink_intervals[2]
-    flag = False
-    for corrupt_interval in interval_corrupt:
-        corrupt_start = corrupt_interval[0]
-        corrupt_end = corrupt_interval[1]
+# pred = []
+# for blink_intervals in final_blinks_t:
+#     blink_start, blink_end = blink_intervals[0], blink_intervals[2]
+#     flag = False
+#     for corrupt_interval in interval_corrupt:
+#         corrupt_start = corrupt_interval[0]
+#         corrupt_end = corrupt_interval[1]
 
-        # See if there is any intersection
-        if (corrupt_end > blink_start) and (corrupt_start < blink_end):
-            flag = True
+#         # See if there is any intersection
+#         if (corrupt_end > blink_start) and (corrupt_start < blink_end):
+#             flag = True
             
-    if flag is False and flag_soft is False:
-        for idx, d in enumerate(gt_blinks):
-            if d[1]==2:# i.e. soft blink
-                if d[0] < blink_end and d[0] > blink_start:
-                    flag = True
-        for idx, d in enumerate(gt_blinks):
-            if d[1]<2:# i.e. soft blink
-                if d[0] < blink_end and d[0] > blink_start:
-                    flag = False
+#     if flag is False and flag_soft is False:
+#         for idx, d in enumerate(gt_blinks):
+#             if d[1]==2:# i.e. soft blink
+#                 if d[0] < blink_end and d[0] > blink_start:
+#                     flag = True
+#         for idx, d in enumerate(gt_blinks):
+#             if d[1]<2:# i.e. soft blink
+#                 if d[0] < blink_end and d[0] > blink_start:
+#                     flag = False
                     
-    if flag is False:
-        pred.append(blink_intervals)
+#     if flag is False:
+#         pred.append(blink_intervals)
 
-if flag_soft:
-    ground_truth = gt_blinks[:,0]
-else:
-    ground_truth = [item[0] for item in gt_blinks if item[1]<2]
-if mode is False: # i.e. video/read dataset
-        # consider stimulations till 200s
-        ground_truth = [item for item in ground_truth if item < 199.5]
+# if flag_soft:
+#     ground_truth = gt_blinks[:,0]
+# else:
+#     ground_truth = [item[0] for item in gt_blinks if item[1]<2]
+# if mode is False: # i.e. video/read dataset
+#         # consider stimulations till 200s
+#         ground_truth = [item for item in ground_truth if item < 199.5]
 
-pred =  np.array(pred)
-ground_truth =  np.array(ground_truth)
+# pred =  np.array(pred)
+# ground_truth =  np.array(ground_truth)
 
-cmat = np.array([[0,0],[0,0]])
+# cmat = np.array([[0,0],[0,0]])
 
-total_pred =  len(pred)
-total_gt = len(gt_blinks)
+# total_pred =  len(pred)
+# total_gt = len(gt_blinks)
 
-for gt_sample in ground_truth:
-    found = False
-    for pred_sample in pred:
-        blink_start, blink_end = pred_sample[0], pred_sample[2]
-        if gt_sample > blink_start and gt_sample < blink_end:
-            found = True
-    if found:
-        cmat[0,0] = cmat[0,0] + 1
-    else:
-        cmat[1,0] = cmat[1,0] + 1
-        #print gt_sample
+# for gt_sample in ground_truth:
+#     found = False
+#     for pred_sample in pred:
+#         blink_start, blink_end = pred_sample[0], pred_sample[2]
+#         if gt_sample > blink_start and gt_sample < blink_end:
+#             found = True
+#     if found:
+#         cmat[0,0] = cmat[0,0] + 1
+#     else:
+#         cmat[1,0] = cmat[1,0] + 1
+#         #print gt_sample
 
-for pred_sample in pred:
-    blink_start, blink_end = pred_sample[0], pred_sample[2]
-    found = False
-    for gt_sample in ground_truth:        
-        if gt_sample > blink_start and gt_sample < blink_end:
-            found = True
-    if found:
-        cmat[1,1] = cmat[1,1] + 1
-    else:
-        cmat[0,1] = cmat[0,1] + 1
+# for pred_sample in pred:
+#     blink_start, blink_end = pred_sample[0], pred_sample[2]
+#     found = False
+#     for gt_sample in ground_truth:        
+#         if gt_sample > blink_start and gt_sample < blink_end:
+#             found = True
+#     if found:
+#         cmat[1,1] = cmat[1,1] + 1
+#     else:
+#         cmat[0,1] = cmat[0,1] + 1
 
-print ("Confusion Matrix:")       
-print (cmat)
+# print ("Confusion Matrix:")       
+# print (cmat)
 
-precision = cmat[0,0]*1.0/(cmat[0,0] + cmat[0,1])
-recall = cmat[0,0]*1.0/(cmat[0,0] + cmat[1,0])
-f1 = 2*precision*recall/(precision+recall)
+# precision = cmat[0,0]*1.0/(cmat[0,0] + cmat[0,1])
+# recall = cmat[0,0]*1.0/(cmat[0,0] + cmat[1,0])
+# f1 = 2*precision*recall/(precision+recall)
 
-print ("Recall, Precision, F1 Score")
-print (recall, precision, f1)
+# print ("Recall, Precision, F1 Score")
+# print (recall, precision, f1)
 
 plt.show()
 
