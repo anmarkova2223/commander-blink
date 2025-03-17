@@ -14,6 +14,7 @@ from serial import Serial
 from threading import Thread, Event
 from queue import Queue
 from scipy.signal import find_peaks, butter, filtfilt
+import json
 
 experiment_running = True
 cyton_in = True
@@ -268,10 +269,34 @@ def simple_classifier(file):
     df = pd.DataFrame(new_data)
 
     df['onsets'] = (df[9].shift(1) < 30) & (df[9] >= 30)
+    df['offset'] = (df[9].shift(-1) < 30)& (df[9] >= 30)
 
-    all_onsets = df[['onsets']].index
+    num_channels = 11  
+    column_names = [f"EEG_{i}" for i in range(1, 9)]  # 8 EEG channels
+    column_names += [f"AUX_{i}" for i in range(1, 4)]  # 3 AUX channels
+    column_names += ["Timestamp", "Onset", "Offset"]  # Add Onset and Offset
+
+    df.columns = column_names 
+
+    all_onsets = df[['Onset']].index
+
+    # Extract EEG channels
+    selected_eeg_channels = ["EEG_1", "EEG_2", "EEG_3", "EEG_4"]
+    eeg_data = df[selected_eeg_channels]
+
+    # Extract AUX channels
+    aux_channels = ["AUX_1", "AUX_2", "AUX_3"]
+    aux_data = df[aux_channels]
+
+    # Extract timestamps
+    timestamps = df["Timestamp"]
+
     eeg_data = df[["EEG_1", "EEG_2", "EEG_3", "EEG_4"]]
     filtered_eeg = eeg_data.apply(lambda x: bandpass_filter(x, 1, 50, fs))
+
+    df['potential_peaks'] = pd.Series(dtype='object')
+    df['potential_max_peaks'] = pd.Series(dtype='object')
+    df['ground_points'] = pd.Series(dtype='object')
 
     for i, onset_idx in enumerate(all_onsets):
         offset_idx = onset_idx + int(1 * fs)
@@ -286,9 +311,9 @@ def simple_classifier(file):
 
         ground_points = find_max_min_pattern(max_peaks, peaks)
 
-        df.at[onset_idx, 'potential_peaks'] = potential_peaks.tolist()  
-        df.at[onset_idx, 'potential_max_peaks'] = potential_max_peaks.tolist() 
-        df.at[onset_idx, 'ground_points'] = ground_points.tolist()
+        df.at[onset_idx, 'potential_peaks'] = list(potential_peaks)
+        df.at[onset_idx, 'potential_max_peaks'] = list(potential_max_peaks)
+        df.at[onset_idx, 'ground_points'] = list(ground_points)
     
     np.save(f'{file_name}_processed.npy', df.to_numpy())
     
@@ -307,6 +332,7 @@ if not test and cyton_in:
     ANALOGUE_MODE = '/2'
     if CYTON_BOARD_ID != 6:
         params.serial_port = find_openbci_port()
+        # params.serial_port = ''
     elif CYTON_BOARD_ID == 6:
         params.ip_port = 9000
     board = BoardShim(CYTON_BOARD_ID, params)
