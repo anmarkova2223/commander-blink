@@ -13,6 +13,7 @@ import glob, sys, time, serial
 from serial import Serial
 from threading import Thread, Event
 from queue import Queue
+from scipy.signal import find_peaks, butter, filtfilt
 
 experiment_running = True
 cyton_in = True
@@ -159,6 +160,13 @@ def write_data_file(trial_num):
     # board.prepare_session()  -- what is this???
     # board.start_stream()  -- what is this???
 
+# for filtering for the model
+def bandpass_filter(data, lowcut, highcut, fs, order=4):
+    nyquist = 0.5 * fs
+    low = lowcut / nyquist
+    high = highcut / nyquist
+    b, a = butter(order, [low, high], btype='band')
+    return filtfilt(b, a, data, axis=0)
 
 # Simon's code for Brainflow + getting parameters
 if cyton_in: 
@@ -227,6 +235,63 @@ def get_data(queue_in, lsl_out=False):
     #         model = pickle.load(f)
     # else:
     #     model = None
+
+## finding peaks for simple classifier
+def find_max_min_pattern(max_peaks, min_peaks):
+    # Create a list to store the windows that match the pattern
+    pattern_windows = []
+
+    # Iterate through the max peaks and check if the pattern occurs
+    for i in range(len(max_peaks) - 2):  # We need at least 5 peaks for a complete pattern
+        # Define the candidate window of 5 peaks (max, min, max, min, max)
+        candidate_max1 = max_peaks[i]
+        candidate_min1 = min_peaks[i] if i < len(min_peaks) else None
+        candidate_max2 = max_peaks[i + 1]
+        candidate_min2 = min_peaks[i + 1] if i + 1 < len(min_peaks) else None
+        candidate_max3 = max_peaks[i + 2]
+
+        # print((candidate_max1, candidate_min1, candidate_max2, candidate_min2, candidate_max3))
+
+        # Check if we have a valid pattern: max, min, max, min, max
+        if (candidate_min1 is not None and candidate_max1 < candidate_min1 and
+            candidate_max2 > candidate_min1 and candidate_min2 is not None and
+            candidate_max2 < candidate_min2 and candidate_max3 > candidate_min2):
+            # If the pattern matches, store the start and end indices of the window
+            pattern_windows += [candidate_max1, candidate_min1, candidate_max2, candidate_min2, candidate_max3]
+
+    return pattern_windows
+
+def simple_classifier(file):
+    file_name = file.split('.npy')[0]
+    fs = 250
+    new_data = np.load(file)
+    df = pd.DataFrame(new_data)
+
+    df['onsets'] = (df[9].shift(1) < 30) & (df[9] >= 30)
+
+    all_onsets = df[['onsets']].index
+    eeg_data = df[["EEG_1", "EEG_2", "EEG_3", "EEG_4"]]
+    filtered_eeg = eeg_data.apply(lambda x: bandpass_filter(x, 1, 50, fs))
+
+    for i, onset_idx in enumerate(all_onsets):
+        offset_idx = onset_idx + int(1 * fs)
+
+        offset_idx = min(offset_idx, len(df) - 1)
+
+        signal = filtered_eeg['EEG_3'].loc[onset_idx: offset_idx]
+        peaks, _ = find_peaks(-1*signal, height=40, distance=60)
+        max_peaks, _ = find_peaks(signal, height=20, distance=60)
+        potential_peaks = signal.index[0] + peaks
+        potential_max_peaks = signal.index[0] + max_peaks
+
+        ground_points = find_max_min_pattern(max_peaks, peaks)
+
+        df.at[onset_idx, 'potential_peaks'] = potential_peaks.tolist()  
+        df.at[onset_idx, 'potential_max_peaks'] = potential_max_peaks.tolist() 
+        df.at[onset_idx, 'ground_points'] = ground_points.tolist()
+    
+    np.save(f'{file_name}_processed.npy', df.to_numpy())
+    
 
 
 # Performing the Experiment
@@ -308,6 +373,7 @@ for trial_num, trial_artifacts in enumerate(trials, start=1):
     # DataFilter.write_file(data, filename, 'a')
 
         # Display rest break
+    simple_classifier(filename)
     rest_break = visual.TextStim(win, text="End of Trial. Rest Break", color="white", height=30, pos=(0, 150))
     fixation.draw()  
     rest_break.draw()
